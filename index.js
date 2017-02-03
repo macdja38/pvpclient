@@ -148,7 +148,7 @@ class Client extends EventEmitter {
     if (failThrow) failThrow = `Error Property ${key} does not exist on ${this._fileName}`;
     let keys = key.split(".");
     if (keys.length < 1) throw "Key must be at least one section long";
-    let data = this.configMap.get(keys[0]);
+    let data = this.configMap.get(keys.shift());
     data = (data && data.data) ? data.data : {};
     return this._recursiveGet(keys, data, {fallBack, failThrow});
   }
