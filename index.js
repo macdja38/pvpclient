@@ -63,7 +63,7 @@ class Client extends EventEmitter {
     this.connection = new WebSocket(this.address, null, {
       headers: { token: this.token, id: this.id }
     });
-    this.bindListeners();
+    this._bindListeners();
     this.connection.on('connect', () => {
       console.log('connection')
     });
@@ -73,7 +73,7 @@ class Client extends EventEmitter {
     })
   }
 
-  bindListeners() {
+  _bindListeners() {
     this.connection.on('message', (message) => {
       let contents = JSON.parse(message);
       console.log('got message', contents);
@@ -98,6 +98,18 @@ class Client extends EventEmitter {
           break;
       }
     })
+  }
+
+  updateConfigMap(id, data) {
+    this.sendMessage({ op: OpCodes.UPDATE_CONFIG, d: { data, id, o: "update"} })
+  }
+
+  replaceConfigMap(id, data) {
+    this.sendMessage({ op: OpCodes.UPDATE_CONFIG, d: { data, id, o: "replace" } })
+  }
+
+  getConfig(id) {
+    return this.configMap.get(id);
   }
 
   startHeartbeat() {
