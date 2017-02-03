@@ -34,9 +34,16 @@ class Client extends EventEmitter {
     this.delay = 0;
   }
 
+  /**
+   * Disconnect from the api server
+   * @param reconnect true if connection should be reformed
+   */
   disconnect(reconnect = false) {
     if (this.connection) {
       this.connection.close();
+      if (this.heartBeatInterval) {
+        clearInterval(this.heartBeatInterval);
+      }
       this.state = states.DISCONNECTED;
     }
     if (reconnect) {
@@ -46,10 +53,18 @@ class Client extends EventEmitter {
     }
   }
 
+  /**
+   * Starts following config changes of a single guild
+   * @param id
+   */
   addGuild(id) {
     this.addGuilds([id]);
   }
 
+  /**
+   * Starts following config chages for an array of guilds
+   * @param ids
+   */
   addGuilds(ids) {
     ids.filter(id => !this.guildList.has(id));
     if (ids.length < 1) return;
@@ -59,6 +74,9 @@ class Client extends EventEmitter {
     })
   }
 
+  /**
+   * Initialises the connection to the api server
+   */
   connect() {
     if (this.state !== states.DISCONNECTED) {
       this.disconnect(false);
@@ -83,8 +101,8 @@ class Client extends EventEmitter {
       switch (contents.op) {
         case OpCodes.HELLO:
           this.heartBeatIntervalTime = contents.d.heartbeat_interval;
-          this.startHeartbeat();
-          this.sendMessage({ op: OpCodes.IDENTIFY, d: { id: clientId, token: this.token } });
+          this._startHeartbeat();
+          this.sendMessage({ op: OpCodes.IDENTIFY, d: { id: this.id, token: this.token } });
           break;
         case OpCodes.DISPATCH:
           switch (contents.t) {
@@ -103,19 +121,62 @@ class Client extends EventEmitter {
     })
   }
 
+  /**
+   * Updates a configMap
+   * @param id guild id or * for base config
+   * @param data
+   */
   updateConfigMap(id, data) {
     this.sendMessage({ op: OpCodes.UPDATE_CONFIG, d: { data, id, o: "update"} })
   }
 
+  /**
+   * Replaces a configMap
+   * @param id guild id or * for base config
+   * @param data
+   */
   replaceConfigMap(id, data) {
     this.sendMessage({ op: OpCodes.UPDATE_CONFIG, d: { data, id, o: "replace" } })
   }
 
+  /**
+   * get a key from the config. will accept a fallBack value or throw if failThrow is defined.
+   * @param key
+   * @param fallBack
+   * @param failThrow
+   * @returns {*}
+   */
+  get(key, {fallBack, failThrow}) {
+    if (failThrow) failThrow = `Error Property ${key} does not exist on ${this._fileName}`;
+    let keys = key.split(".");
+    if (keys.length < 1) throw "Key must be at least one section long";
+    let data = this.configMap.get(keys[0]);
+    return this._recursiveGet(keys, data || {}, {fallBack, failThrow});
+  }
+
+  _recursiveGet(keys, data, {fallback, failThrow}) {
+    if (keys.length === 0) {
+      return data;
+    }
+    let key = keys.shift();
+    if (typeof data === "object" && data.hasOwnProperty(key)) {
+      return this._recursiveGet(keys, data[key], {fallback, failThrow});
+    } else {
+      if (fallback) return fallback;
+      if (failThrow) throw failThrow;
+    }
+  }
+
+  /**
+   * Get's the entire config based on an id
+   * @param id of guild
+   * @returns {Object || null}
+   */
   getConfig(id) {
     return this.configMap.get(id);
   }
 
-  startHeartbeat() {
+  _startHeartbeat() {
     if (this.heartBeatInterval) {
       clearInterval(this.heartBeatInterval);
     }
@@ -124,6 +185,10 @@ class Client extends EventEmitter {
     }, this.heartBeatIntervalTime)
   }
 
+  /**
+   * Sends an object through the websocket to the api server, if using the lib this will probably not be needed.
+   * @param object
+   */
   sendMessage(object) {
     console.log("sending, ", object, JSON.stringify(object));
     this.connection.send(JSON.stringify(object))
