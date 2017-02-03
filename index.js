@@ -20,9 +20,10 @@ let clientId = "38383838338";
 const OpCodes = require('./OpCodes');
 
 class Client extends EventEmitter {
-  constructor(token, id, guilds) {
+  constructor(destination, token, id, guilds) {
     super();
     this.token = token;
+    this.address = destination;
     this.id = id;
     this.connection = false;
     this.state = states.DISCONNECTED;
@@ -59,7 +60,7 @@ class Client extends EventEmitter {
     if (this.state !== states.DISCONNECTED) {
       this.disconnect(false);
     }
-    this.connection = new WebSocket(address, null, {
+    this.connection = new WebSocket(this.address, null, {
       headers: { token: this.token, id: this.id }
     });
     this.bindListeners();
