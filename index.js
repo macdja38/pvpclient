@@ -151,7 +151,8 @@ class Client extends EventEmitter {
     let keys = key.split(".");
     if (keys.length < 1) throw "Key must be at least one section long";
     let data = this.configMap.get(keys[0]);
-    return this._recursiveGet(keys, data || {}, {fallBack, failThrow});
+    data = (data && data.data) ? data.data : {};
+    return this._recursiveGet(keys, data, {fallBack, failThrow});
   }
 
   _recursiveGet(keys, data, {fallback, failThrow}) {
