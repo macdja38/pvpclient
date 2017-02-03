@@ -31,6 +31,7 @@ class Client extends EventEmitter {
     this.heartBeatIntervalTime = 15000;
     this.configMap = new Map();
     this.guildList =  new Set(guilds);
+    this.delay = 0;
   }
 
   disconnect(reconnect = false) {
@@ -39,7 +40,9 @@ class Client extends EventEmitter {
       this.state = states.DISCONNECTED;
     }
     if (reconnect) {
-      this.connect();
+      setTimeout(() => {
+        this.connect();
+      }, (this.delay = Math.min(Math.max(this.delay *= 2, 1), 5)) * 1000);
     }
   }
 
@@ -87,7 +90,7 @@ class Client extends EventEmitter {
           switch (contents.t) {
             case "READY":
               this.sendMessage({ op: OpCodes.REQUEST_GUILD, d: { guilds: Array.from(this.guildList) } });
-
+              this.delay = 0;
               break;
             case "GUILD_CONFIG_UPDATE":
               console.log("New config received", contents.d);
