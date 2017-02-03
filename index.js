@@ -97,7 +97,6 @@ class Client extends EventEmitter {
   _bindListeners() {
     this.connection.on('message', (message) => {
       let contents = JSON.parse(message);
-      console.log('got message', contents);
       switch (contents.op) {
         case OpCodes.HELLO:
           this.heartBeatIntervalTime = contents.d.heartbeat_interval;
@@ -111,7 +110,6 @@ class Client extends EventEmitter {
               this.delay = 0;
               break;
             case "GUILD_CONFIG_UPDATE":
-              console.log("New config received", contents.d);
               this.configMap.set(contents.d.id, contents.d);
               this.emit("GUILD_CONFIG_UPDATE", contents.d);
               break;
@@ -191,7 +189,6 @@ class Client extends EventEmitter {
    * @param object
    */
   sendMessage(object) {
-    console.log("sending, ", object, JSON.stringify(object));
     this.connection.send(JSON.stringify(object))
   }
 }
