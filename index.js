@@ -30,7 +30,7 @@ class Client extends EventEmitter {
     this.heartBeatInterval = false;
     this.heartBeatIntervalTime = 15000;
     this.configMap = new Map();
-    this.guildList =  new Set(guilds);
+    this.guildList = new Set(guilds);
     this.delay = 0;
   }
 
@@ -70,7 +70,7 @@ class Client extends EventEmitter {
     if (ids.length < 1) return;
     ids.forEach(id => this.guildList.add(id));
     this.sendMessage({
-      op: OpCodes.REQUEST_GUILD, d: { guilds: [ids] }
+      op: OpCodes.REQUEST_GUILD, d: {guilds: [ids]}
     })
   }
 
@@ -82,7 +82,7 @@ class Client extends EventEmitter {
       this.disconnect(false);
     }
     this.connection = new WebSocket(this.address, null, {
-      headers: { token: this.token, id: this.id }
+      headers: {token: this.token, id: this.id}
     });
     this._bindListeners();
     this.connection.on('connect', () => {
@@ -102,12 +102,12 @@ class Client extends EventEmitter {
         case OpCodes.HELLO:
           this.heartBeatIntervalTime = contents.d.heartbeat_interval;
           this._startHeartbeat();
-          this.sendMessage({ op: OpCodes.IDENTIFY, d: { id: this.id, token: this.token } });
+          this.sendMessage({op: OpCodes.IDENTIFY, d: {id: this.id, token: this.token}});
           break;
         case OpCodes.DISPATCH:
           switch (contents.t) {
             case "READY":
-              this.sendMessage({ op: OpCodes.REQUEST_GUILD, d: { guilds: Array.from(this.guildList) } });
+              this.sendMessage({op: OpCodes.REQUEST_GUILD, d: {guilds: Array.from(this.guildList)}});
               this.delay = 0;
               break;
             case "GUILD_CONFIG_UPDATE":
@@ -127,7 +127,7 @@ class Client extends EventEmitter {
    * @param data
    */
   updateConfigMap(id, data) {
-    this.sendMessage({ op: OpCodes.UPDATE_CONFIG, d: { data, id, o: "update"} })
+    this.sendMessage({op: OpCodes.UPDATE_CONFIG, d: {data, id, o: "update"}})
   }
 
   /**
@@ -136,7 +136,7 @@ class Client extends EventEmitter {
    * @param data
    */
   replaceConfigMap(id, data) {
-    this.sendMessage({ op: OpCodes.UPDATE_CONFIG, d: { data, id, o: "replace" } })
+    this.sendMessage({op: OpCodes.UPDATE_CONFIG, d: {data, id, o: "replace"}})
   }
 
   /**
@@ -159,7 +159,7 @@ class Client extends EventEmitter {
       return data;
     }
     let key = keys.shift();
-    if (typeof data === "object" && data.hasOwnProperty(key)) {
+    if (typeof data === "object" && data !== null && data.hasOwnProperty(key)) {
       return this._recursiveGet(keys, data[key], {fallback, failThrow});
     } else {
       if (fallback) return fallback;
@@ -181,7 +181,7 @@ class Client extends EventEmitter {
       clearInterval(this.heartBeatInterval);
     }
     this.heartBeatInterval = setInterval(() => {
-      this.sendMessage({ op: OpCodes.HEARTBEAT, d: Date.now() });
+      this.sendMessage({op: OpCodes.HEARTBEAT, d: Date.now()});
     }, this.heartBeatIntervalTime)
   }
 
