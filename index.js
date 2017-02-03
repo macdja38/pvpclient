@@ -6,7 +6,7 @@ const WebSocket = require('ws');
 
 const EventEmitter = require('events');
 
-const address = 'ws://localhost:8080';
+const address = 'ws://localhost:8089';
 
 const states = {
   DISCONNECTED: 0,
@@ -20,14 +20,16 @@ let clientId = "38383838338";
 const OpCodes = require('./OpCodes');
 
 class Client extends EventEmitter {
-  constructor(token) {
+  constructor(token, id, guilds) {
     super();
     this.token = token;
+    this.id = id;
     this.connection = false;
     this.state = states.DISCONNECTED;
     this.heartBeatInterval = false;
     this.heartBeatIntervalTime = 15000;
     this.configMap = new Map();
+    this.guildList =  new Set(guilds);
   }
 
   disconnect(reconnect = false) {
@@ -40,16 +42,33 @@ class Client extends EventEmitter {
     }
   }
 
+  addGuild(id) {
+    this.addGuilds([id]);
+  }
+
+  addGuilds(ids) {
+    ids.filter(id => !this.guildList.has(id));
+    if (ids.length < 1) return;
+    ids.forEach(id => this.guildList.add(id));
+    this.sendMessage({
+      op: OpCodes.REQUEST_GUILD, d: { guilds: [ids] }
+    })
+  }
+
   connect() {
     if (this.state !== states.DISCONNECTED) {
       this.disconnect(false);
     }
     this.connection = new WebSocket(address, null, {
-      headers: { auth: 'trololololol' }
+      headers: { token: this.token, id: this.id }
     });
     this.bindListeners();
     this.connection.on('connect', () => {
       console.log('connection')
+    });
+    this.connection.on('close', () => {
+      console.log('disconnected');
+      this.disconnect(true);
     })
   }
 
@@ -66,11 +85,13 @@ class Client extends EventEmitter {
         case OpCodes.DISPATCH:
           switch (contents.t) {
             case "READY":
-              this.sendMessage({ op: OpCodes.REQUEST_GUILD, d: { guilds: ['97069403178278912'] } });
+              this.sendMessage({ op: OpCodes.REQUEST_GUILD, d: { guilds: Array.from(this.guildList) } });
+
               break;
             case "GUILD_CONFIG_UPDATE":
               console.log("New config received", contents.d);
               this.configMap.set(contents.d.id, contents.d);
+              this.emit("GUILD_CONFIG_UPDATE", contents.d);
               break;
           }
           break;
