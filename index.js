@@ -39,12 +39,12 @@ class Client extends EventEmitter {
    * @param reconnect true if connection should be reformed
    */
   disconnect(reconnect = false) {
+    this.state = states.DISCONNECTED;
     if (this.connection) {
       this.connection.close();
       if (this.heartBeatInterval) {
         clearInterval(this.heartBeatInterval);
       }
-      this.state = states.DISCONNECTED;
     }
     if (reconnect) {
       setTimeout(() => {
@@ -69,9 +69,11 @@ class Client extends EventEmitter {
     ids.filter(id => !this.guildList.has(id));
     if (ids.length < 1) return;
     ids.forEach(id => this.guildList.add(id));
-    this.sendMessage({
-      op: OpCodes.REQUEST_GUILD, d: {guilds: [ids]}
-    })
+    if (this.state === states.READY) {
+      this.sendMessage({
+        op: OpCodes.REQUEST_GUILD, d: {guilds: [ids]}
+      })
+    }
   }
 
   /**
@@ -86,6 +88,7 @@ class Client extends EventEmitter {
     });
     this._bindListeners();
     this.connection.on('connect', () => {
+      this.state = states.READY;
       console.log('connection')
     });
     this.connection.on('close', () => {
