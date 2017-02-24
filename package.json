@@ -23,6 +23,6 @@
   },
   "homepage": "https://github.com/macdja38/pvpclient#readme",
   "dependencies": {
-    "ws": "^1.1.1"
+    "ws": "^2.1.0"
   }
 }
