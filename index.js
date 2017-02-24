@@ -83,7 +83,7 @@ class Client extends EventEmitter {
     if (this.state !== states.DISCONNECTED) {
       this.disconnect(false);
     }
-    this.connection = new WebSocket(this.address, null, {
+    this.connection = new WebSocket(this.address, {
       headers: {token: this.token, id: this.id}
     });
     this._bindListeners();
