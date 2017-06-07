@@ -94,7 +94,11 @@ class Client extends EventEmitter {
     this.connection.on('close', () => {
       console.log('disconnected');
       this.disconnect(true);
-    })
+    });
+    this.connection.on('error', (error) => {
+      console.log(error);
+      this.emit("error", error);
+    });
   }
 
   _bindListeners() {
