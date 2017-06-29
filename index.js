@@ -20,7 +20,7 @@ let clientId = "38383838338";
 const OpCodes = require('./OpCodes');
 
 class Client extends EventEmitter {
-  constructor(destination, token, id, guilds) {
+  constructor(destination, token, id, guilds, eris) {
     super();
     this.token = token;
     this.address = destination;
@@ -31,7 +31,9 @@ class Client extends EventEmitter {
     this.heartBeatIntervalTime = 15000;
     this.configMap = new Map();
     this.guildList = new Set(guilds);
+    this.eris = eris;
     this.delay = 0;
+    this._onMessage = this._onMessage.bind(this);
   }
 
   /**
@@ -102,28 +104,56 @@ class Client extends EventEmitter {
   }
 
   _bindListeners() {
-    this.connection.on('message', (message) => {
-      let contents = JSON.parse(message);
-      switch (contents.op) {
-        case OpCodes.HELLO:
-          this.heartBeatIntervalTime = contents.d.heartbeat_interval;
-          this._startHeartbeat();
-          this.sendMessage({op: OpCodes.IDENTIFY, d: {id: this.id, token: this.token}});
-          break;
-        case OpCodes.DISPATCH:
-          switch (contents.t) {
-            case "READY":
-              this.sendMessage({op: OpCodes.REQUEST_GUILD, d: {guilds: Array.from(this.guildList)}});
-              this.delay = 0;
-              break;
-            case "GUILD_CONFIG_UPDATE":
-              this.configMap.set(contents.d.id, contents.d);
-              this.emit("GUILD_CONFIG_UPDATE", contents.d);
-              break;
-          }
-          break;
-      }
-    })
+    this.connection.on('message', this._onMessage);
+  }
+
+  _onMessage(message) {
+    let contents = JSON.parse(message);
+    if (this.rpcClient && this.rpcClient.isRpcMsg(contents)) {
+      this.rpcClient.message(contents);
+      return;
+    }
+    switch (contents.op) {
+      case OpCodes.HELLO:
+        this.heartBeatIntervalTime = contents.d.heartbeat_interval;
+        this._startHeartbeat();
+        this.sendMessage({op: OpCodes.IDENTIFY, d: {id: this.id, token: this.token}});
+        break;
+      case OpCodes.DISPATCH:
+        switch (contents.t) {
+          case "READY":
+            this.sendMessage({op: OpCodes.REQUEST_GUILD, d: {guilds: Array.from(this.guildList)}});
+            this.delay = 0;
+            break;
+          case "GUILD_CONFIG_UPDATE":
+            this.configMap.set(contents.d.id, contents.d);
+            this.emit("GUILD_CONFIG_UPDATE", contents.d);
+            break;
+        }
+        break;
+      case OpCodes.GET_CHANNELS_USERS_AND_ROLES:
+        console.log("Was asked for something");
+        console.log(contents);
+        let guild = this.eris.guilds.get(contents.d.id);
+        let serverObject;
+        if (guild) {
+          serverObject = {
+            roles: guild.roles.map(role => ({id: role.id, name: role.name})),
+            members: guild.members.map(member => ({id: member.id, name: member.user.username})),
+            channels: guild.channels.map(channel => ({id: channel.id, name: channel.name, type: channel.type})),
+          };
+        } else {
+          serverObject = {
+            error: "unable to find guild with that id",
+          };
+        }
+        this.sendMessage({
+          op: OpCodes.RESPONSE_CHANNELS_USERS_AND_ROLES,
+          d: serverObject,
+          nonce: contents.nonce,
+        });
+        break;
+    }
   }
 
   /**
