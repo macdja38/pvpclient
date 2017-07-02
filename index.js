@@ -89,7 +89,7 @@ class Client extends EventEmitter {
       headers: {token: this.token, id: this.id}
     });
     this._bindListeners();
-    this.connection.on('connect', () => {
+    this.connection.on('open', () => {
       this.state = states.READY;
       console.log('connection')
     });
@@ -98,7 +98,7 @@ class Client extends EventEmitter {
       this.disconnect(true);
     });
     this.connection.on('error', (error) => {
-      console.log(error);
+      console.error(error);
       this.emit("error", error);
     });
   }
