@@ -57,10 +57,18 @@ class Client extends EventEmitter {
 
   /**
    * Starts following config changes of a single guild
-   * @param id
+   * @param {string} id
    */
   addGuild(id) {
     this.addGuilds([id]);
+  }
+
+  /**
+   * Notifies the api server that the bot is no longer on the specified guild.
+   * @param id
+   */
+  removeGuild(id) {
+    this.removeGuilds([id]);
   }
 
   /**
@@ -74,6 +82,21 @@ class Client extends EventEmitter {
     if (this.state === states.READY) {
       this.sendMessage({
         op: OpCodes.REQUEST_GUILD, d: {guilds: [ids]}
+      })
+    }
+  }
+
+  /**
+   * Starts following config chages for an array of guilds
+   * @param ids
+   */
+  removeGuilds(ids) {
+    ids.filter(id => this.guildList.has(id));
+    if (ids.length < 1) return;
+    ids.forEach(id => this.guildList.delete(id));
+    if (this.state === states.READY) {
+      this.sendMessage({
+        op: OpCodes.REMOVE_GUILD, d: {guilds: [ids]}
       })
     }
   }
