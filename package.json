@@ -1,6 +1,6 @@
 {
   "name": "pvpclient",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "client for the pvpcraft universal config",
   "main": "index.js",
   "scripts": {
@@ -23,6 +23,8 @@
   },
   "homepage": "https://github.com/macdja38/pvpclient#readme",
   "dependencies": {
+    "request": "^2.83.0",
+    "request-promise-native": "^1.0.5",
     "ws": "^2.3.1"
   }
 }

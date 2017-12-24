@@ -17,14 +17,17 @@ const states = {
 
 let clientId = "38383838338";
 
+const requestPromise = require("request-promise-native");
+
 const OpCodes = require('./OpCodes');
 
 class Client extends EventEmitter {
-  constructor(destination, token, id, guilds, eris) {
+  constructor(destination, https, token, id, guilds, eris) {
     super();
     this.token = token;
     this.address = destination;
     this.id = id;
+    this.https = https;
     this.connection = false;
     this.state = states.DISCONNECTED;
     this.heartBeatInterval = false;
@@ -34,6 +37,14 @@ class Client extends EventEmitter {
     this.eris = eris;
     this.delay = 0;
     this._onMessage = this._onMessage.bind(this);
+  }
+
+  getWebsocketURL() {
+    return `ws${this.https ? "s" : ""}://${this.address}/botconfig/v1/ws`;
+  }
+
+  getApiURL() {
+    return `http${this.https ? "s" : ""}://${this.address}/v1/`
   }
 
   /**
@@ -108,7 +119,7 @@ class Client extends EventEmitter {
     if (this.state !== states.DISCONNECTED) {
       this.disconnect(false);
     }
-    this.connection = new WebSocket(this.address, {
+    this.connection = new WebSocket(this.getWebsocketURL(), {
       headers: {token: this.token, id: this.id}
     });
     this._bindListeners();
@@ -195,6 +206,14 @@ class Client extends EventEmitter {
    */
   replaceConfigMap(id, data) {
     this.sendMessage({op: OpCodes.UPDATE_CONFIG, d: {data, id, o: "replace"}})
+  }
+
+  getConfigMap() {
+    return requestPromise(`${this.getApiURL()}settingsMap/${this.id}`, {
+      headers: {
+        token: this.token,
+      }
+    }).then(res => JSON.parse(res));
   }
 
   /**
