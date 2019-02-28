@@ -92,13 +92,13 @@ class Client extends EventEmitter {
     ids.forEach(id => this.guildList.add(id));
     if (this.state === states.READY) {
       this.sendMessage({
-        op: OpCodes.REQUEST_GUILD, d: {guilds: [ids]}
+        op: OpCodes.REQUEST_GUILD, d: { guilds: [ids] }
       })
     }
   }
 
   /**
-   * Starts following config chages for an array of guilds
+   * Starts following config changes for an array of guilds
    * @param ids
    */
   removeGuilds(ids) {
@@ -107,7 +107,7 @@ class Client extends EventEmitter {
     ids.forEach(id => this.guildList.delete(id));
     if (this.state === states.READY) {
       this.sendMessage({
-        op: OpCodes.REMOVE_GUILD, d: {guilds: [ids]}
+        op: OpCodes.REMOVE_GUILD, d: { guilds: [ids] }
       })
     }
   }
@@ -120,7 +120,7 @@ class Client extends EventEmitter {
       this.disconnect(false);
     }
     this.connection = new WebSocket(this.getWebsocketURL(), {
-      headers: {token: this.token, id: this.id}
+      headers: { token: this.token, id: this.id }
     });
     this._bindListeners();
     this.connection.on('open', () => {
@@ -151,12 +151,12 @@ class Client extends EventEmitter {
       case OpCodes.HELLO:
         this.heartBeatIntervalTime = contents.d.heartbeat_interval;
         this._startHeartbeat();
-        this.sendMessage({op: OpCodes.IDENTIFY, d: {id: this.id, token: this.token}});
+        this.sendMessage({ op: OpCodes.IDENTIFY, d: { id: this.id, token: this.token } });
         break;
       case OpCodes.DISPATCH:
         switch (contents.t) {
           case "READY":
-            this.sendMessage({op: OpCodes.REQUEST_GUILD, d: {guilds: Array.from(this.guildList)}});
+            this.sendMessage({ op: OpCodes.REQUEST_GUILD, d: { guilds: Array.from(this.guildList) } });
             this.delay = 0;
             break;
           case "GUILD_CONFIG_UPDATE":
@@ -172,9 +172,9 @@ class Client extends EventEmitter {
         let serverObject;
         if (guild) {
           serverObject = {
-            roles: guild.roles.map(role => ({id: role.id, name: role.name})),
-            members: guild.members.map(member => ({id: member.id, name: member.user.username})),
-            channels: guild.channels.map(channel => ({id: channel.id, name: channel.name, type: channel.type})),
+            roles: guild.roles.map(role => ({ id: role.id, name: role.name })),
+            members: guild.members.map(member => ({ id: member.id, name: member.user.username })),
+            channels: guild.channels.map(channel => ({ id: channel.id, name: channel.name, type: channel.type })),
           };
         } else {
           serverObject = {
@@ -187,6 +187,9 @@ class Client extends EventEmitter {
           nonce: contents.nonce,
         });
         break;
+      case OpCodes.HEARTBEAT_ACK:
+        console.log('heartbeat acked');
+        this.heartbeatAcked = contents.d;
     }
   }
 
@@ -196,7 +199,7 @@ class Client extends EventEmitter {
    * @param data
    */
   updateConfigMap(id, data) {
-    this.sendMessage({op: OpCodes.UPDATE_CONFIG, d: {data, id, o: "update"}})
+    this.sendMessage({ op: OpCodes.UPDATE_CONFIG, d: { data, id, o: "update" } })
   }
 
   /**
@@ -205,7 +208,7 @@ class Client extends EventEmitter {
    * @param data
    */
   replaceConfigMap(id, data) {
-    this.sendMessage({op: OpCodes.UPDATE_CONFIG, d: {data, id, o: "replace"}})
+    this.sendMessage({ op: OpCodes.UPDATE_CONFIG, d: { data, id, o: "replace" } })
   }
 
   getConfigMap() {
@@ -223,22 +226,22 @@ class Client extends EventEmitter {
    * @param failThrow
    * @returns {*}
    */
-  get(key, {fallBack, failThrow}) {
+  get(key, { fallBack, failThrow }) {
     if (failThrow) failThrow = `Error Property ${key} does not exist on ${this._fileName}`;
     let keys = key.split(".");
     if (keys.length < 1) throw "Key must be at least one section long";
     let data = this.configMap.get(keys.shift());
     data = (data && data.data) ? data.data : {};
-    return this._recursiveGet(keys, data, {fallBack, failThrow});
+    return this._recursiveGet(keys, data, { fallBack, failThrow });
   }
 
-  _recursiveGet(keys, data, {fallback, failThrow}) {
+  _recursiveGet(keys, data, { fallback, failThrow }) {
     if (keys.length === 0) {
       return data;
     }
     let key = keys.shift();
     if (typeof data === "object" && data !== null && data.hasOwnProperty(key)) {
-      return this._recursiveGet(keys, data[key], {fallback, failThrow});
+      return this._recursiveGet(keys, data[key], { fallback, failThrow });
     } else {
       if (fallback) return fallback;
       if (failThrow) throw failThrow;
@@ -259,7 +262,12 @@ class Client extends EventEmitter {
       clearInterval(this.heartBeatInterval);
     }
     this.heartBeatInterval = setInterval(() => {
-      this.sendMessage({op: OpCodes.HEARTBEAT, d: Date.now()});
+      if (this.heartbeatAcked < (Date.now() - (2 * this.heartBeatIntervalTime) - 200)) {
+        console.log('forcing disconnect');
+        this.disconnect(true);
+      } else {
+        this.sendMessage({ op: OpCodes.HEARTBEAT, d: Date.now() });
+      }
     }, this.heartBeatIntervalTime)
   }
 
