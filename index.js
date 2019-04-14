@@ -4,6 +4,8 @@
 
 const WebSocket = require('ws');
 
+const logID = Math.floor(Math.random() * 10000);
+
 const EventEmitter = require('events');
 
 const address = 'ws://localhost:8089';
@@ -55,7 +57,7 @@ class Client extends EventEmitter {
    * @param reconnect true if connection should be reformed
    */
   disconnect(reconnect = false) {
-    console.log(`Disconnect called, with reconnect set to ${reconnect}`);
+    console.log(`${logID} Disconnect called, with reconnect set to ${reconnect}`);
     this.state = states.DISCONNECTED;
     if (this.connection) {
       this._unBindListeners();
@@ -148,11 +150,11 @@ class Client extends EventEmitter {
   _onOpen() {
     this.state = states.READY;
     this.delay = 0;
-    console.log('connection')
+    console.log(`${logID} connection`)
   }
 
   _onClose() {
-    console.log('disconnected');
+    console.log(`${logID} disconnected`);
     this.disconnect(true);
   }
 
@@ -189,7 +191,7 @@ class Client extends EventEmitter {
         }
         break;
       case OpCodes.GET_CHANNELS_USERS_AND_ROLES:
-        console.log("Was asked for something");
+        console.log(`${logID} Was asked for something`);
         console.log(contents);
         let guild = this.eris.guilds.get(contents.d.id);
         let serverObject;
@@ -215,7 +217,7 @@ class Client extends EventEmitter {
         });
         break;
       case OpCodes.HEARTBEAT_ACK:
-        console.log('heartbeat acked');
+        console.log(`${logID} heartbeat acked { d: ${contents.d} }`);
         this.heartbeatAcked = contents.d;
     }
   }
@@ -290,10 +292,12 @@ class Client extends EventEmitter {
     }
     this.heartBeatInterval = setInterval(() => {
       if (this.heartbeatAcked < (Date.now() - (2 * this.heartBeatIntervalTime) - 200)) {
-        console.log('forcing disconnect');
+        console.log(`${logID} forcing disconnect`);
         this.disconnect(true);
       } else {
-        this.sendMessage({ op: OpCodes.HEARTBEAT, d: Date.now() });
+        const d = Date.now();
+        console.log(`${logID} sending heartbeat with { d: ${d} }`);
+        this.sendMessage({ op: OpCodes.HEARTBEAT, d });
       }
     }, this.heartBeatIntervalTime)
   }
