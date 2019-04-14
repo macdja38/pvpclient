@@ -290,6 +290,7 @@ class Client extends EventEmitter {
     if (this.heartBeatInterval) {
       clearInterval(this.heartBeatInterval);
     }
+    this.heartbeatAcked = Date.now();
     this.heartBeatInterval = setInterval(() => {
       if (this.heartbeatAcked < (Date.now() - (2 * this.heartBeatIntervalTime) - 200)) {
         console.log(`${logID} forcing disconnect`);
