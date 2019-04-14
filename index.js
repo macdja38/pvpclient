@@ -36,6 +36,9 @@ class Client extends EventEmitter {
     this.guildList = new Set(guilds);
     this.eris = eris;
     this.delay = 0;
+    this._onOpen = this._onOpen.bind(this);
+    this._onClose = this._onClose.bind(this);
+    this._onError= this._onError.bind(this);
     this._onMessage = this._onMessage.bind(this);
   }
 
@@ -52,12 +55,14 @@ class Client extends EventEmitter {
    * @param reconnect true if connection should be reformed
    */
   disconnect(reconnect = false) {
+    console.log(`Disconnect called, with reconnect set to ${reconnect}`);
     this.state = states.DISCONNECTED;
     if (this.connection) {
-      this.connection.close();
+      this._unBindListeners();
       if (this.heartBeatInterval) {
         clearInterval(this.heartBeatInterval);
       }
+      this.connection.close();
     }
     if (reconnect) {
       setTimeout(() => {
@@ -92,7 +97,7 @@ class Client extends EventEmitter {
     ids.forEach(id => this.guildList.add(id));
     if (this.state === states.READY) {
       this.sendMessage({
-        op: OpCodes.REQUEST_GUILD, d: { guilds: [ids] }
+        op: OpCodes.REQUEST_GUILD, d: { guilds: [ids] },
       })
     }
   }
@@ -107,7 +112,7 @@ class Client extends EventEmitter {
     ids.forEach(id => this.guildList.delete(id));
     if (this.state === states.READY) {
       this.sendMessage({
-        op: OpCodes.REMOVE_GUILD, d: { guilds: [ids] }
+        op: OpCodes.REMOVE_GUILD, d: { guilds: [ids] },
       })
     }
   }
@@ -119,26 +124,41 @@ class Client extends EventEmitter {
     if (this.state !== states.DISCONNECTED) {
       this.disconnect(false);
     }
+    this.state = states.CONNECTING;
     this.connection = new WebSocket(this.getWebsocketURL(), {
-      headers: { token: this.token, id: this.id }
+      headers: { token: this.token, id: this.id },
     });
     this._bindListeners();
-    this.connection.on('open', () => {
-      this.state = states.READY;
-      console.log('connection')
-    });
-    this.connection.on('close', () => {
-      console.log('disconnected');
-      this.disconnect(true);
-    });
-    this.connection.on('error', (error) => {
-      console.error(error);
-      this.emit("error", error);
-    });
   }
 
   _bindListeners() {
+    this.connection.on('open', this._onOpen);
+    this.connection.on('close', this._onClose);
+    this.connection.on('error', this._onError);
     this.connection.on('message', this._onMessage);
+  }
+
+  _unBindListeners() {
+    this.connection.removeListener('open', this._onOpen);
+    this.connection.removeListener('close', this._onClose);
+    this.connection.removeListener('error', this._onError);
+    this.connection.removeListener('message', this._onMessage);
+  }
+
+  _onOpen() {
+    this.state = states.READY;
+    this.delay = 0;
+    console.log('connection')
+  }
+
+  _onClose() {
+    console.log('disconnected');
+    this.disconnect(true);
+  }
+
+  _onError(error) {
+    console.error(error);
+    this.emit("error", error);
   }
 
   _onMessage(message) {
@@ -156,7 +176,10 @@ class Client extends EventEmitter {
       case OpCodes.DISPATCH:
         switch (contents.t) {
           case "READY":
-            this.sendMessage({ op: OpCodes.REQUEST_GUILD, d: { guilds: Array.from(this.guildList) } });
+            this.sendMessage({
+              op: OpCodes.REQUEST_GUILD,
+              d: { guilds: Array.from(this.guildList) },
+            });
             this.delay = 0;
             break;
           case "GUILD_CONFIG_UPDATE":
@@ -174,7 +197,11 @@ class Client extends EventEmitter {
           serverObject = {
             roles: guild.roles.map(role => ({ id: role.id, name: role.name })),
             members: guild.members.map(member => ({ id: member.id, name: member.user.username })),
-            channels: guild.channels.map(channel => ({ id: channel.id, name: channel.name, type: channel.type })),
+            channels: guild.channels.map(channel => ({
+              id: channel.id,
+              name: channel.name,
+              type: channel.type,
+            })),
           };
         } else {
           serverObject = {
@@ -215,7 +242,7 @@ class Client extends EventEmitter {
     return requestPromise(`${this.getApiURL()}settingsMap/${this.id}`, {
       headers: {
         token: this.token,
-      }
+      },
     }).then(res => JSON.parse(res));
   }
 
